@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>TinyLocal</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <div class="bg"></div>
+  <main class="shell">
+    <header class="header">
+      <p class="brand">TinyLocal</p>
+      <h1>图片压缩</h1>
+      <p class="sub">TinyPNG API · 多 Key 自动切换 · Tauri 桌面版</p>
+    </header>
+
+    <section class="panel key-panel">
+      <div class="key-head">
+        <label for="keySelect">API Key</label>
+        <p id="periodHint" class="hint period-hint"></p>
+      </div>
+
+      <div class="key-row">
+        <select id="keySelect"></select>
+        <button type="button" id="deleteKey" class="btn ghost danger-btn" disabled>删除</button>
+      </div>
+
+      <div class="key-row add-row">
+        <input id="apiKey" type="password" placeholder="粘贴新的 API Key" autocomplete="off" />
+        <input id="keyLabel" type="text" placeholder="备注（可选）" maxlength="32" />
+        <button type="button" id="addKey" class="btn ghost">添加</button>
+      </div>
+
+      <ul id="keyList" class="key-list"></ul>
+      <p id="keyStatus" class="hint"></p>
+    </section>
+
+    <section class="panel">
+      <div class="opts">
+        <div class="field">
+          <label for="format">输出格式</label>
+          <select id="format">
+            <option value="original" selected>原格式（不转换）</option>
+            <option value="webp">WEBP</option>
+            <option value="jpeg">JPEG</option>
+            <option value="png">PNG</option>
+          </select>
+        </div>
+        <p class="hint format-hint">不选择转换时，按原图类型压缩（PNG→PNG，JPEG→JPEG…）</p>
+      </div>
+
+      <div id="dropzone" class="dropzone" tabindex="0">
+        <p class="drop-title">拖拽图片到这里</p>
+        <p class="drop-sub">或点击选择文件 · 支持 PNG / JPEG / WEBP / AVIF · 可多选</p>
+      </div>
+
+      <ul id="fileList" class="file-list" hidden></ul>
+
+      <div class="actions">
+        <button type="button" id="compressBtn" class="btn primary" disabled>开始压缩</button>
+        <button type="button" id="clearBtn" class="btn ghost" disabled>清空</button>
+        <button type="button" id="openOutBtn" class="btn ghost">打开输出目录</button>
+      </div>
+    </section>
+
+    <section id="results" class="panel results" hidden>
+      <div class="results-head">
+        <h2>结果</h2>
+        <button type="button" id="zipDownload" class="btn primary zip-btn" hidden>一键打包下载</button>
+      </div>
+      <p id="switchHint" class="hint" hidden></p>
+      <ul id="resultList" class="result-list"></ul>
+    </section>
+  </main>
+  <script type="module" src="./main.js"></script>
+</body>
+</html>

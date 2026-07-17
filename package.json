@@ -1,0 +1,24 @@
+{
+  "name": "tinylocal",
+  "version": "1.0.0",
+  "private": true,
+  "description": "TinyPNG 本地图片压缩桌面工具（Tauri）",
+  "type": "module",
+  "scripts": {
+    "vite:dev": "vite",
+    "vite:build": "vite build",
+    "tauri": "tauri",
+    "dev": "tauri dev",
+    "build": "tauri build",
+    "icon": "tauri icon app-icon.png"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.11.4",
+    "vite": "^6.3.5"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2.11.1",
+    "@tauri-apps/plugin-dialog": "^2.7.1",
+    "@tauri-apps/plugin-opener": "^2.5.4"
+  }
+}
