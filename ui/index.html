@@ -50,7 +50,14 @@
             <option value="png">PNG</option>
           </select>
         </div>
-        <p class="hint format-hint">不选择转换时，按原图类型压缩（PNG→PNG，JPEG→JPEG…）</p>
+        <div class="field">
+          <label for="mode">压缩方式</label>
+          <select id="mode">
+            <option value="sequential" selected>逐张压缩（推荐）</option>
+            <option value="batch">批量压缩</option>
+          </select>
+        </div>
+        <p class="hint format-hint">逐张：一张完成后再压下一张，实时显示进度；批量：一次提交整批（内部仍按序处理）</p>
       </div>
 
       <div id="dropzone" class="dropzone" tabindex="0">
@@ -69,9 +76,13 @@
 
     <section id="results" class="panel results" hidden>
       <div class="results-head">
-        <h2>结果</h2>
+        <h2>进度 / 结果</h2>
         <button type="button" id="zipDownload" class="btn primary zip-btn" hidden>一键打包下载</button>
       </div>
+      <div id="progressBarWrap" class="progress-bar-wrap" hidden>
+        <div id="progressBar" class="progress-bar"></div>
+      </div>
+      <p id="progressText" class="hint" hidden></p>
       <p id="switchHint" class="hint" hidden></p>
       <ul id="resultList" class="result-list"></ul>
     </section>

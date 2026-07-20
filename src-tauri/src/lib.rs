@@ -10,7 +10,7 @@ use std::collections::HashSet;
 use std::fs::{self, File};
 use std::io::copy;
 use std::path::{Path, PathBuf};
-use tauri::{AppHandle, Manager};
+use tauri::{AppHandle, Emitter, Manager};
 use tinify::{compress_file, TinifyError};
 use zip::write::SimpleFileOptions;
 use zip::ZipWriter;
@@ -182,11 +182,33 @@ fn set_active_api_key(app: AppHandle, id: String) -> Result<KeysView, String> {
     set_active_key(&config_dir, &id)
 }
 
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ProgressEvent {
+    index: usize,
+    total: usize,
+    name: String,
+    status: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    error: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    input_size: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    output_size: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    ratio: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    output_path: Option<String>,
+}
+
 #[tauri::command]
 async fn compress_images(
     app: AppHandle,
     paths: Vec<String>,
     format: Option<String>,
+    progress_offset: Option<usize>,
+    progress_total: Option<usize>,
+    skip_zip: Option<bool>,
 ) -> Result<CompressResponse, String> {
     let (config_dir, output_dir, zip_dir) = ensure_dirs(&app)?;
     let _ = public_keys_view(&config_dir);
@@ -207,11 +229,15 @@ async fn compress_images(
         .map(|s| s.trim().to_ascii_lowercase())
         .filter(|s| !s.is_empty());
 
+    let offset = progress_offset.unwrap_or(0);
+    let path_count = paths.len();
+    let total = progress_total.unwrap_or(path_count).max(1);
     let mut results = Vec::new();
     let mut success_paths = Vec::new();
     let mut all_switches = Vec::new();
 
-    for path_str in paths {
+    for (local_index, path_str) in paths.into_iter().enumerate() {
+        let index = offset + local_index;
         let source = PathBuf::from(&path_str);
         let name = source
             .file_name()
@@ -219,20 +245,28 @@ async fn compress_images(
             .unwrap_or(&path_str)
             .to_string();
 
-        match compress_with_failover(
-            &config_dir,
-            &source,
-            &output_dir,
-            fmt.as_deref(),
-        )
-        .await
-        {
+        let _ = app.emit(
+            "compress-progress",
+            ProgressEvent {
+                index,
+                total,
+                name: name.clone(),
+                status: "start".into(),
+                error: None,
+                input_size: None,
+                output_size: None,
+                ratio: None,
+                output_path: None,
+            },
+        );
+
+        match compress_with_failover(&config_dir, &source, &output_dir, fmt.as_deref()).await {
             Ok((info, _key_id, switches)) => {
                 all_switches.extend(switches);
                 success_paths.push(info.output.clone());
-                results.push(FileResult {
+                let result = FileResult {
                     ok: true,
-                    name,
+                    name: name.clone(),
                     error: None,
                     input_size: Some(info.input_size),
                     output_size: Some(info.output_size),
@@ -241,9 +275,38 @@ async fn compress_images(
                     output_path: Some(info.output.to_string_lossy().into()),
                     output_type: Some(info.output_type),
                     compression_count: info.compression_count,
-                });
+                };
+                let _ = app.emit(
+                    "compress-progress",
+                    ProgressEvent {
+                        index,
+                        total,
+                        name,
+                        status: "ok".into(),
+                        error: None,
+                        input_size: result.input_size,
+                        output_size: result.output_size,
+                        ratio: result.ratio,
+                        output_path: result.output_path.clone(),
+                    },
+                );
+                results.push(result);
             }
             Err(err) => {
+                let _ = app.emit(
+                    "compress-progress",
+                    ProgressEvent {
+                        index,
+                        total,
+                        name: name.clone(),
+                        status: "fail".into(),
+                        error: Some(err.clone()),
+                        input_size: None,
+                        output_size: None,
+                        ratio: None,
+                        output_path: None,
+                    },
+                );
                 results.push(FileResult {
                     ok: false,
                     name,
@@ -260,7 +323,9 @@ async fn compress_images(
         }
     }
 
-    let zip = if !success_paths.is_empty() {
+    let zip = if skip_zip.unwrap_or(false) || success_paths.is_empty() {
+        None
+    } else {
         let stamp = chrono::Local::now().format("%Y-%m-%dT%H-%M-%S");
         let zip_name = format!("compressed-{stamp}.zip");
         let zip_path = zip_dir.join(&zip_name);
@@ -273,8 +338,6 @@ async fn compress_images(
             }),
             Err(_) => None,
         }
-    } else {
-        None
     };
 
     Ok(CompressResponse {
@@ -285,6 +348,25 @@ async fn compress_images(
         switches: all_switches,
         keys: public_keys_view(&config_dir),
     })
+}
+
+#[tauri::command]
+fn zip_paths(app: AppHandle, paths: Vec<String>) -> Result<Option<ZipInfo>, String> {
+    let (_, _, zip_dir) = ensure_dirs(&app)?;
+    let files: Vec<PathBuf> = paths.into_iter().map(PathBuf::from).collect();
+    if files.is_empty() {
+        return Ok(None);
+    }
+    let stamp = chrono::Local::now().format("%Y-%m-%dT%H-%M-%S");
+    let zip_name = format!("compressed-{stamp}.zip");
+    let zip_path = zip_dir.join(&zip_name);
+    let bytes = create_zip(&files, &zip_path)?;
+    Ok(Some(ZipInfo {
+        path: zip_path.to_string_lossy().into(),
+        name: zip_name,
+        count: files.len(),
+        bytes,
+    }))
 }
 
 #[tauri::command]
@@ -395,6 +477,7 @@ pub fn run() {
             remove_api_key,
             set_active_api_key,
             compress_images,
+            zip_paths,
             reveal_path,
             copy_zip_to,
             open_output_dir,

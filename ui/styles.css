@@ -253,10 +253,53 @@ select:focus {
 
 .opts {
   margin-bottom: 16px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px 24px;
+  align-items: flex-end;
 }
 
 .field {
   max-width: 280px;
+  flex: 1 1 200px;
+}
+
+.progress-bar-wrap {
+  height: 8px;
+  border-radius: 999px;
+  background: #e2ebe5;
+  overflow: hidden;
+  margin: 8px 0 4px;
+}
+
+.progress-bar {
+  height: 100%;
+  width: 0%;
+  background: var(--accent);
+  border-radius: 999px;
+  transition: width 0.25s ease;
+}
+
+.result-item.pending .status-tag {
+  color: var(--muted);
+}
+
+.result-item.running .status-tag {
+  color: var(--accent);
+}
+
+.result-item.ok .status-tag {
+  color: var(--ok);
+}
+
+.result-item.fail .status-tag {
+  color: var(--danger);
+}
+
+.status-tag {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  white-space: nowrap;
 }
 
 .dropzone {
